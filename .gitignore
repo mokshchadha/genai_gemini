@@ -164,3 +164,4 @@ cython_debug/
 genai/
 
 .env
+faiss_index
