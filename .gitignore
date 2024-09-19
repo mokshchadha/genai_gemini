@@ -165,3 +165,4 @@ genai/
 
 .env
 faiss_index
+faiss_index/*
