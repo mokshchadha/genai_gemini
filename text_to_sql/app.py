@@ -30,7 +30,7 @@ def read_sql_query(sql, db):
 ## Define your prompt
 prompts = ['''
     You are an expert in converting English question to SQL query!
-    The SQL database has the table name Student and has the following columns - NAME, CLASS, SECTION, MARKS
+    The SQL database has the table name Student and has the following columns - NAME, CLASS, SECTION, MARKS, NOTICE_PERIOD , LOCATION
     For example :- 
     Example 1 : How many records are present? , The SQL command will be SELECT * from STUDENT;
     Example 2 : Tell me all the students studying in Data Science class?, the SQL command will be something like this SELECT * from STUDENT where CLASS = "Data Science";
@@ -41,8 +41,8 @@ prompts = ['''
 ]
 
 ### STREAM LIT APP
-st.set_page_config(page_title="SQL")
-st.header("Gemini App To Retrieve SQL Data")
+st.set_page_config(page_title="Chat with database")
+st.header("Get Candidate info")
 
 question=st.text_input("Input: ", key="input")
 submit = st.button("Ask the question")
