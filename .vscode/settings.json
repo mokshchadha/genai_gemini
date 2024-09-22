@@ -1,10 +1,13 @@
 {
     "cSpell.words": [
+        "audiofile",
         "dotenv",
         "FAISS",
         "genai",
         "generativeai",
         "langchain",
+        "moviepy",
+        "pydub",
         "streamlit",
         "vectorstores"
     ]

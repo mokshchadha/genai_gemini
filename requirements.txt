@@ -8,3 +8,7 @@ faiss-cpu
 langchain_google_genai
 langchain_community
 pdf2image
+moviepy
+openai-whisper
+ffmpeg-python
+pydub
