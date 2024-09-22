@@ -1,8 +1,11 @@
 {
     "cSpell.words": [
+        "dotenv",
         "FAISS",
         "genai",
+        "generativeai",
         "langchain",
+        "streamlit",
         "vectorstores"
     ]
 }
