@@ -11,8 +11,13 @@ from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+import time
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Initialize session state for chat history if it doesn't exist
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -44,7 +49,12 @@ def get_conversational_chain():
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    db = FAISS.load_local('faiss_index', embeddings, allow_dangerous_deserialization=True)
+    
+    try:
+        db = FAISS.load_local('faiss_index', embeddings, allow_dangerous_deserialization=True)
+    except Exception as e:
+        st.error("Please upload and process PDF files first!")
+        return None
     
     llm = ChatGoogleGenerativeAI(model='gemini-1.5-pro', temperature=0.3)
     
@@ -57,38 +67,125 @@ def get_conversational_chain():
     
     return qa_chain
 
-def user_input(user_question):
+def handle_user_input(user_question):
     qa_chain = get_conversational_chain()
-    response = qa_chain.invoke({"query": user_question})
-    st.write("Reply:", response['result'])
+    if qa_chain:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": user_question})
+        
+        # Show typing indicator
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.text("Thinking...")
+            
+            # Get response from chain
+            response = qa_chain.invoke({"query": user_question})
+            
+            # Remove typing indicator and add assistant's response
+            message_placeholder.empty()
+            st.write(response['result'])
+        
+        # Add assistant's response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": response['result']})
+
+def create_chat_interface():
+    # Custom CSS for chat interface
+    st.markdown("""
+        <style>
+        .stChatMessage {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e6f3ff;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+        }
+        .chat-container {
+            height: 600px;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 def main():
-    st.set_page_config(page_title="Chat with Resumes")
-    st.header("Chat with Resumes using Gemini")
+    st.set_page_config(
+        page_title="Chat with Resumes",
+        page_icon="📄",
+        layout="wide"
+    )
 
-    st.warning("""
-    ⚠️ Security Warning: This app uses local file storage for vector indices. 
-    Only use this app with PDF files from trusted sources. 
-    Do not upload or process files from untrusted or unknown origins.
-    """)
-
-    user_question = st.text_input("Ask a question from the PDF files")
-
-    if user_question:
-        user_input(user_question)
-
+    # Create two columns: sidebar and main content
     with st.sidebar:
-        st.title("Menu:")
-        pdf_docs = st.file_uploader("Upload your PDF files and click on Submit", accept_multiple_files=True)
-        if st.button("Submit & Process"):
+        st.title("📚 Pippin Documents")
+        pdf_docs = st.file_uploader(
+            "Upload your PDF files",
+            accept_multiple_files=True,
+            help="Select one or more PDF files to analyze"
+        )
+        
+        if st.button("Process Documents", key="process_docs"):
             if pdf_docs:
-                with st.spinner("Analyzing..."):
+                with st.spinner("Processing documents..."):
                     raw_text = get_pdf_text(pdf_docs)
                     text_chunks = get_text_chunks(raw_text)
                     get_vector_store(text_chunks)
-                    st.success("Done")
+                    st.success("✅ Documents processed successfully!")
+                    st.session_state.messages = []  # Clear chat history when new documents are processed
             else:
-                st.error("Please upload PDF files before processing.")
+                st.error("Please upload PDF files first!")
+        
+        # Add system status
+        st.divider()
+        st.subheader("System Status")
+        try:
+            if os.path.exists("faiss_index"):
+                st.success("Vector Store: Ready")
+            else:
+                st.warning("Vector Store: Not initialized")
+        except Exception as e:
+            st.error(f"Error checking system status: {str(e)}")
+
+    # Main chat interface
+    st.title("💬 Chat with Your Documents")
+    
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+
+    # Chat input
+    if user_question := st.chat_input("Ask me anything about the documents..."):
+        if not os.path.exists("faiss_index"):
+            st.error("Please upload and process PDF files first!")
+        else:
+            handle_user_input(user_question)
+
+    # Add helpful instructions
+    with st.expander("ℹ️ How to use this app"):
+        st.markdown("""
+        1. Upload your PDF documents using the sidebar
+        2. Click 'Process Documents' to analyze them
+        3. Start asking questions about your documents
+        4. The AI will respond based on the content of your documents
+        
+        **Note**: Make sure to process your documents before starting the chat!
+        """)
+
+    # Security warning
+    st.sidebar.divider()
+    st.sidebar.warning("""
+    ⚠️ Security Notice:
+    - Only upload documents you have permission to use
+    - This app stores data locally
+    - Don't upload sensitive information
+    """)
 
 if __name__ == "__main__":
     main()
